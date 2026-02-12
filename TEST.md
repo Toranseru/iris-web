@@ -2,6 +2,23 @@
 
 Use this to prepare and run a clean test of [Install-IRIS.ps1](Install-IRIS.ps1).
 
+## End-to-end test (WSL + Docker + reboot/resume)
+
+To test the full flow (WSL install, reboot, resume, Docker install, clone, deploy), use [Prepare-E2ETest.ps1](Prepare-E2ETest.ps1) first. Run as Administrator:
+
+```powershell
+cd d:\DockerWorkspace\iris-web-master-live\iris-web-master
+.\Prepare-E2ETest.ps1 -RemoveWSL -RemoveDocker -RemoveIrisClone -Force
+```
+
+Then run the install script **without** `-SkipDockerInstall`:
+
+```powershell
+.\Install-IRIS.ps1
+```
+
+The script will install WSL (or Docker), schedule a one-time resume at next logon, and reboot. After you log back in, it will continue automatically. Use only on a test machine or VM.
+
 ## Prerequisites
 
 - **Docker Desktop** running (or run the script without `-SkipDockerInstall` and let it install).
