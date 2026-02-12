@@ -41,6 +41,9 @@ A single PowerShell script installs Docker (with WSL2), clones this repo, genera
 .\Install-IRIS.ps1 -SkipDockerInstall
 ```
 
+If you get "running scripts is disabled", either run the launcher **Run-Install-IRIS.cmd** (same folder as the script) or run:
+`powershell -ExecutionPolicy Bypass -File .\Install-IRIS.ps1`
+
 - **Docs:** [DEPLOY.md](DEPLOY.md) for options and [TEST.md](TEST.md) for a clean test run.
 - **Private repo:** Use `-RepoUrl "https://github.com/YourOrg/your-repo.git"`; a credential prompt will appear when cloning.
 - **Admin:** Username `administrator`; password is printed and saved to `iris-admin-password.txt` in the clone folder.
