@@ -6,7 +6,7 @@ This document covers deploying and configuring DFIR IRIS in this workspace and p
 
 A single PowerShell script installs Docker (with WSL2), clones this repo, generates `.env` with secrets, and deploys IRIS on **https://localhost**.
 
-- **Run as Administrator** when installing Docker/WSL. If a reboot is required, the script schedules a one-time resume at next logon and reboots (cancel with `shutdown /a`).
+- **Run as Administrator** when installing Docker/WSL. If a reboot is required, the script prints the command to run after reboot and optionally reboots (cancel with `shutdown /a`). Run that command again after rebooting.
 - **Requirements:** Port 443 free. Git is installed via winget if missing; for private repos a credential prompt appears when cloning.
 - **First visit:** Accept the dev certificate warning (Advanced → Proceed to localhost).
 - **Test run:** See [TEST.md](TEST.md) for clean-state steps and verification.
