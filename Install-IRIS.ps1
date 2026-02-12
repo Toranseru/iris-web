@@ -20,6 +20,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
 $RepoRoot = Join-Path $InstallParent $RepoFolderName
 
 function Write-Step { param([string]$Msg) Write-Host "`n--- $Msg ---" -ForegroundColor Cyan }
