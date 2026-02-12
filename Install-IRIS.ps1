@@ -8,6 +8,7 @@
   First visit: accept the dev certificate warning (Advanced -> Proceed to localhost).
 .NOTES
   Port 443 must be free. Git is installed via winget if missing; for private repos a credential prompt will appear when cloning.
+  When running inside a virtual machine, nested virtualization must be enabled on the VM host (required for Docker/WSL2).
 #>
 
 param(

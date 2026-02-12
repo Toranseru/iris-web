@@ -4,10 +4,10 @@ This document covers deploying and configuring DFIR IRIS in this workspace and p
 
 ## One-click install (Windows)
 
-A single PowerShell script installs Docker (with WSL2), clones this repo, generates `.env` with secrets, and deploys IRIS on **https://localhost**.
+A single PowerShell script requires Docker Desktop (WSL2 backend) to be installed and running; it clones this repo, generates `.env` with secrets, and deploys IRIS on **https://localhost**.
 
-- **Run as Administrator** when installing Docker/WSL. If a reboot is required, the script prints the command to run after reboot and optionally reboots (cancel with `shutdown /a`). Run that command again after rebooting.
-- **Requirements:** Port 443 free. Git is installed via winget if missing; for private repos a credential prompt appears when cloning.
+- **Requirements:** Docker Desktop (WSL2 backend), port 443 free. Git is installed via winget if missing; for private repos a credential prompt appears when cloning.
+- **Virtual machines only:** Nested virtualization must be enabled on the VM host (required for Docker/WSL2).
 - **First visit:** Accept the dev certificate warning (Advanced → Proceed to localhost).
 - **Test run:** See [TEST.md](TEST.md) for clean-state steps and verification.
 
@@ -15,12 +15,10 @@ A single PowerShell script installs Docker (with WSL2), clones this repo, genera
 # From the repo root (where Install-IRIS.ps1 lives):
 .\Install-IRIS.ps1
 # Or: -InstallParent "C:\Projects"  -RepoFolderName "iris-web"  -RepoUrl "https://github.com/..."
-# Skip Docker install if already installed:
-# .\Install-IRIS.ps1 -SkipDockerInstall
 # Existing .env is never overwritten; delete .env to regenerate secrets.
 ```
 
-After run, the admin password is printed and saved to `iris-admin-password.txt` in the repo root (delete after saving elsewhere). Username: **administrator**.
+After run, the admin password is printed in the console. Username: **administrator**.
 
 ## Directory layout
 
