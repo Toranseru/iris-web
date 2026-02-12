@@ -39,7 +39,7 @@ function Request-RebootAndRerun {
 # ---------- Step 1: WSL2 and Docker Desktop ----------
 Write-Step "Step 1: WSL2 and Docker Desktop"
 
-# Check WSL
+Write-Host "Checking WSL..."
 $wslOk = $false
 try {
     $wslVer = wsl -l -v 2>$null
@@ -50,13 +50,23 @@ if (-not $wslOk) {
     wsl --install
     Request-RebootAndRerun
 }
+Write-Ok "WSL is available."
 
-# Check Docker
+Write-Host "Checking Docker daemon..."
 $dockerOk = $false
 try {
     docker info 2>$null | Out-Null
     if ($LASTEXITCODE -eq 0) { $dockerOk = $true }
 } catch {}
+
+# If daemon not responding, check if Docker client is installed (avoid re-download)
+$dockerClientExists = $false
+try { docker version 2>$null | Out-Null; if ($LASTEXITCODE -eq 0) { $dockerClientExists = $true } } catch {}
+if (-not $dockerOk -and $dockerClientExists) {
+    Write-Host "Docker is installed but the daemon is not running." -ForegroundColor Yellow
+    Write-Host "Start Docker Desktop from the Start menu, wait until it is ready (whale icon in tray), then run this script again." -ForegroundColor Yellow
+    exit 1
+}
 
 if (-not $dockerOk -and -not $SkipDockerInstall) {
     $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -67,13 +77,13 @@ if (-not $dockerOk -and -not $SkipDockerInstall) {
     $installerPath = Join-Path $env:TEMP "DockerDesktopInstaller.exe"
     $dockerInstallerUrl = "https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe"
 
-    Write-Host "Downloading Docker Desktop installer..."
+    Write-Host "Downloading Docker Desktop installer (~600MB) from desktop.docker.com to $installerPath ..."
     Invoke-WebRequest -Uri $dockerInstallerUrl -OutFile $installerPath -UseBasicParsing
 
-    Write-Host "Installing Docker Desktop (silent)..."
+    Write-Host "Installing Docker Desktop (silent, this may take a few minutes)..."
     Start-Process -FilePath $installerPath -ArgumentList "install", "--quiet", "--accept-license", "--noreboot" -Wait -Verb RunAs
 
-    Write-Host "Waiting for Docker Desktop to start (up to 90s)..."
+    Write-Host "Waiting for Docker daemon to start (up to 90s)..."
     $maxWait = 90
     $waited = 0
     while ($waited -lt $maxWait) {
@@ -90,13 +100,7 @@ if (-not $dockerOk -and -not $SkipDockerInstall) {
     }
 }
 if (-not $dockerOk) {
-    $clientOk = $false
-    try { docker version 2>$null | Out-Null; if ($LASTEXITCODE -eq 0) { $clientOk = $true } } catch {}
-    if ($clientOk) {
-        Write-Host "Docker client found but the daemon is not running. Start Docker Desktop from the Start menu, wait until it is ready, then run this script again." -ForegroundColor Red
-    } else {
-        Write-Host "Docker is not available. Install Docker Desktop or run without -SkipDockerInstall." -ForegroundColor Red
-    }
+    Write-Host "Docker is not available. Install Docker Desktop or run without -SkipDockerInstall." -ForegroundColor Red
     exit 1
 }
 Write-Ok "Docker is ready."
@@ -104,8 +108,9 @@ Write-Ok "Docker is ready."
 # ---------- Step 2: Clone or pull repo ----------
 Write-Step "Step 2: Clone or pull repo"
 
+Write-Host "Checking for existing repo at $RepoRoot ..."
 if (Test-Path (Join-Path $RepoRoot ".git")) {
-    Write-Host "Repo already exists at $RepoRoot. Pulling..."
+    Write-Host "Repo exists. Pulling latest changes..."
     Push-Location $RepoRoot
     git pull
     if ($LASTEXITCODE -ne 0) { Write-Warn "git pull had issues; continuing." }
@@ -122,7 +127,7 @@ if (Test-Path (Join-Path $RepoRoot ".git")) {
         Write-Warn "Git was installed. Close this window, open a new PowerShell, then run this script again (PATH is updated in new sessions)."
         exit 0
     }
-    Write-Host "Cloning $RepoUrl into $InstallParent as $RepoFolderName ..."
+    Write-Host "Cloning repo from $RepoUrl into $InstallParent as $RepoFolderName ..."
     Push-Location $InstallParent
     git clone $RepoUrl $RepoFolderName
     Pop-Location
@@ -139,6 +144,7 @@ Write-Step "Step 3: Create .env"
 $envModelPath = Join-Path $RepoRoot ".env.model"
 $envPath = Join-Path $RepoRoot ".env"
 
+Write-Host "Checking for .env..."
 if (-not (Test-Path $envModelPath)) {
     Write-Host ".env.model not found at $envModelPath" -ForegroundColor Red
     exit 1
@@ -147,6 +153,7 @@ if (-not (Test-Path $envModelPath)) {
 if (Test-Path $envPath) {
     Write-Warn "Existing .env found; keeping it (passwords unchanged). Delete .env to regenerate secrets."
 } else {
+    Write-Host "Creating .env from .env.model and generating secrets..."
     $content = Get-Content $envModelPath -Raw
 
     function New-RandomBase64 {
@@ -185,14 +192,14 @@ if (-not $script:AdminPassword -and (Test-Path (Join-Path $RepoRoot "iris-admin-
 Write-Step "Step 4: Deploy with Docker Compose"
 
 Push-Location $RepoRoot
-Write-Host "Pulling images..."
+Write-Host "Pulling IRIS container images (nginx, app, db, rabbitmq). This may take several minutes on first run..."
 docker compose pull
 if ($LASTEXITCODE -ne 0) {
     Write-Host "docker compose pull failed." -ForegroundColor Red
     Pop-Location
     exit 1
 }
-Write-Host "Starting stack (detached)..."
+Write-Host "Starting IRIS containers (app, db, nginx, worker, rabbitmq)..."
 docker compose up -d
 if ($LASTEXITCODE -ne 0) {
     Write-Host "docker compose up failed." -ForegroundColor Red
@@ -201,8 +208,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 Pop-Location
 
-# Optional: wait for HTTPS to respond
-Write-Host "Waiting for IRIS to respond (up to 60s)..."
+Write-Host "Checking if IRIS is responding at https://localhost (up to 60s)..."
 $maxWait = 60
 $waited = 0
 $ready = $false
