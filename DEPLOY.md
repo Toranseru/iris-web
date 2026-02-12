@@ -2,6 +2,26 @@
 
 This document covers deploying and configuring DFIR IRIS in this workspace and pushing updates to the fork at **https://github.com/Toranseru/iris-web**.
 
+## One-click install (Windows)
+
+A single PowerShell script installs Docker (with WSL2), clones this repo, generates `.env` with secrets, and deploys IRIS on **https://localhost**.
+
+- **Run as Administrator.** WSL or Docker install may require a reboot; if so, run the script again after reboot.
+- **Requirements:** Git on PATH. Port 443 free.
+- **First visit:** Accept the dev certificate warning (Advanced → Proceed to localhost).
+
+```powershell
+# From the repo root (where Install-IRIS.ps1 lives):
+.\Install-IRIS.ps1
+# Or from anywhere, specifying where to clone (default: $env:USERPROFILE\iris-web):
+# .\Install-IRIS.ps1 -InstallParent "C:\Projects"
+# Skip Docker install if already installed:
+# .\Install-IRIS.ps1 -SkipDockerInstall
+# Existing .env is never overwritten; delete .env to regenerate secrets.
+```
+
+After run, the admin password is printed and saved to `iris-admin-password.txt` in the repo root (delete after saving elsewhere). Username: **administrator**.
+
 ## Directory layout
 
 - **Live workspace (this repo):** `iris-web-master-live/iris-web-master/` — your fork workspace; deploy and edit here.
