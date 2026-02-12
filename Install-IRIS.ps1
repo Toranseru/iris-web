@@ -4,7 +4,7 @@
 .DESCRIPTION
   Requires Docker Desktop to be installed and running. Does not install WSL or Docker.
   Clones or pulls the repo, creates .env with generated secrets and SERVER_NAME=localhost, then runs docker compose up.
-  IRIS will be available at https://localhost. Admin password is printed and saved to iris-admin-password.txt.
+  IRIS will be available at https://localhost. Admin password is printed in the console.
   First visit: accept the dev certificate warning (Advanced -> Proceed to localhost).
 .NOTES
   Port 443 must be free. Git is installed via winget if missing; for private repos a credential prompt will appear when cloning.
@@ -155,15 +155,8 @@ if (Test-Path $envPath) {
 
     Set-Content -Path $envPath -Value $content -NoNewline
 
-    $passwordFilePath = Join-Path $RepoRoot "iris-admin-password.txt"
-    Set-Content -Path $passwordFilePath -Value $irisAdmPassword
-    Write-Ok ".env created; admin password saved to iris-admin-password.txt"
+    Write-Ok ".env created."
     $script:AdminPassword = $irisAdmPassword
-}
-
-# If we skipped overwrite, we don't have admin password in variable; try to read from file
-if (-not $script:AdminPassword -and (Test-Path (Join-Path $RepoRoot "iris-admin-password.txt"))) {
-    $script:AdminPassword = Get-Content (Join-Path $RepoRoot "iris-admin-password.txt") -Raw
 }
 
 # ---------- Step 4: Docker Compose ----------
@@ -214,8 +207,7 @@ Write-Ok "IRIS is available at: https://localhost"
 Write-Host "Admin username: administrator" -ForegroundColor White
 if ($script:AdminPassword) {
     Write-Host "Admin password: $($script:AdminPassword)" -ForegroundColor White
-    Write-Host "Password also saved to: $RepoRoot\iris-admin-password.txt (delete after saving elsewhere)." -ForegroundColor Yellow
 } else {
-    Write-Host "Admin password: see iris-admin-password.txt in repo root, or app container logs (WARNING :: post_init :: create_safe_admin :: >>>)." -ForegroundColor Yellow
+    Write-Host "Admin password: see app container logs (WARNING :: post_init :: create_safe_admin :: >>>)." -ForegroundColor Yellow
 }
 Write-Host "`nFirst visit: accept the certificate warning (Advanced -> Proceed to localhost)." -ForegroundColor Gray
