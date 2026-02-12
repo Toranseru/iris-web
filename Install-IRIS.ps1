@@ -8,7 +8,7 @@
   IRIS will be available at https://localhost. Admin password is printed and saved to iris-admin-password.txt.
   First visit: accept the dev certificate warning (Advanced -> Proceed to localhost).
 .NOTES
-  Reboot may be required after WSL/Docker install; if so, run this script again after reboot.
+  If WSL or Docker install requires a reboot, the script schedules a one-time resume at next logon and reboots (cancel with: shutdown /a).
   Port 443 must be free. Git is installed via winget if missing; for private repos a credential prompt will appear when cloning.
 #>
 
@@ -26,6 +26,22 @@ function Write-Step { param([string]$Msg) Write-Host "`n--- $Msg ---" -Foregroun
 function Write-Ok { param([string]$Msg) Write-Host $Msg -ForegroundColor Green }
 function Write-Warn { param([string]$Msg) Write-Host $Msg -ForegroundColor Yellow }
 
+function Schedule-ResumeAndReboot {
+    param([string]$ScriptPath, [string]$InstallParent, [string]$RepoUrl, [string]$RepoFolderName, [switch]$SkipDockerOnResume)
+    $taskName = "IRIS-Install-Resume"
+    $resumePath = Join-Path $env:TEMP "IRIS-Install-Resume.ps1"
+    $skipArg = if ($SkipDockerOnResume) { " -SkipDockerInstall" } else { "" }
+    $resumeScript = @"
+& `"$ScriptPath`" -InstallParent `"$InstallParent`" -RepoUrl `"$RepoUrl`" -RepoFolderName `"$RepoFolderName`"$skipArg
+schtasks /delete /tn $taskName /f 2>`$null
+"@
+    Set-Content -Path $resumePath -Value $resumeScript
+    schtasks /create /tn $taskName /tr "powershell.exe -ExecutionPolicy Bypass -NoExit -File `"$resumePath`"" /sc onlogon /f 2>$null
+    Write-Ok "Scheduled resume at next logon. Rebooting in 60 seconds (cancel with: shutdown /a)..."
+    shutdown /r /t 60 /c "IRIS install will resume after reboot."
+    exit 0
+}
+
 # ---------- Step 1: WSL2 and Docker Desktop ----------
 Write-Step "Step 1: WSL2 and Docker Desktop"
 
@@ -36,10 +52,10 @@ try {
     if ($LASTEXITCODE -eq 0 -and $wslVer) { $wslOk = $true }
 } catch {}
 if (-not $wslOk) {
-    Write-Warn "WSL not detected. Installing WSL (may require reboot)..."
+    Write-Warn "WSL not detected. Installing WSL (reboot required)..."
     wsl --install
-    Write-Warn "If the system rebooted, run this script again after reboot."
-    exit 0
+    $scriptPath = if ($PSCommandPath) { $PSCommandPath } else { $MyInvocation.MyCommand.Path }
+    Schedule-ResumeAndReboot -ScriptPath $scriptPath -InstallParent $InstallParent -RepoUrl $RepoUrl -RepoFolderName $RepoFolderName
 }
 
 # Check Docker
@@ -76,8 +92,9 @@ if (-not $dockerOk -and -not $SkipDockerInstall) {
         } catch {}
     }
     if (-not $dockerOk) {
-        Write-Warn "Docker did not become ready in time. Start Docker Desktop manually, then run this script again."
-        exit 1
+        Write-Warn "Docker did not become ready in time. Scheduling resume after reboot..."
+        $scriptPath = if ($PSCommandPath) { $PSCommandPath } else { $MyInvocation.MyCommand.Path }
+        Schedule-ResumeAndReboot -ScriptPath $scriptPath -InstallParent $InstallParent -RepoUrl $RepoUrl -RepoFolderName $RepoFolderName -SkipDockerOnResume
     }
 }
 if (-not $dockerOk) {
@@ -208,6 +225,7 @@ while ($waited -lt $maxWait) {
 if (-not $ready) { Write-Warn "HTTPS did not respond in time; IRIS may still be starting." }
 
 # ---------- Step 5: Output ----------
+schtasks /delete /tn "IRIS-Install-Resume" /f 2>$null
 Write-Step "Done"
 Write-Ok "IRIS is available at: https://localhost"
 Write-Host "Admin username: administrator" -ForegroundColor White
