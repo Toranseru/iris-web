@@ -190,15 +190,23 @@ Write-Host "Checking if IRIS is responding at https://localhost (up to 60s)..."
 $maxWait = 60
 $waited = 0
 $ready = $false
+$lastStatusCode = $null
 while ($waited -lt $maxWait) {
     Start-Sleep -Seconds 5
     $waited += 5
     try {
         $r = Invoke-WebRequest -Uri "https://localhost" -SkipCertificateCheck -UseBasicParsing -TimeoutSec 5 -ErrorAction SilentlyContinue
-        if ($r.StatusCode -in 200, 302) { $ready = $true; break }
-    } catch {}
+        if ($r.StatusCode -in 200, 302) { $ready = $true; $lastStatusCode = $r.StatusCode; break }
+        $lastStatusCode = $r.StatusCode
+    } catch {
+        $lastStatusCode = $null
+    }
 }
-if (-not $ready) { Write-Warn "HTTPS did not respond in time; IRIS may still be starting." }
+if ($ready) {
+    Write-Ok "IRIS responded at https://localhost (HTTP $lastStatusCode)."
+} else {
+    Write-Warn "HTTPS did not respond in time; IRIS may still be starting."
+}
 
 # ---------- Step 5: Output ----------
 Write-Step "Done"
