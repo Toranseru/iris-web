@@ -19,6 +19,7 @@ Iris is a web collaborative platform aiming to help incident responders sharing 
 ![demo_timeline](img/timeline_speed.gif)
 
 ## Table of contents
+- [One-click install (Windows)](#one-click-install-windows)
 - [Getting Started](#getting-started)
   - [Run IrisWeb](#run-irisweb)
   - [Configuration](#configuration)
@@ -31,6 +32,18 @@ Iris is a web collaborative platform aiming to help incident responders sharing 
 - [Considerations](#considerations)
 - [License](#license)
 
+
+## One-click install (Windows)
+
+A single PowerShell script installs Docker (with WSL2), clones this repo, generates `.env` with secrets, and deploys IRIS on **https://localhost**. Run as Administrator for first-time Docker/WSL install; use `-SkipDockerInstall` when Docker is already running.
+
+```powershell
+.\Install-IRIS.ps1 -SkipDockerInstall
+```
+
+- **Docs:** [DEPLOY.md](DEPLOY.md) for options and [TEST.md](TEST.md) for a clean test run.
+- **Private repo:** Use `-RepoUrl "https://github.com/YourOrg/your-repo.git"`; a credential prompt will appear when cloning.
+- **Admin:** Username `administrator`; password is printed and saved to `iris-admin-password.txt` in the clone folder.
 
 ## Getting started
 It is divided in two main parts, IrisWeb and IrisModules.   

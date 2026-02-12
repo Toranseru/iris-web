@@ -9,18 +9,18 @@
   First visit: accept the dev certificate warning (Advanced -> Proceed to localhost).
 .NOTES
   Reboot may be required after WSL/Docker install; if so, run this script again after reboot.
-  Port 443 must be free. Git must be on PATH for clone/pull.
+  Port 443 must be free. Git is installed via winget if missing; for private repos a credential prompt will appear when cloning.
 #>
 
 param(
     [string]$InstallParent = $env:USERPROFILE,
     [string]$RepoUrl = "https://github.com/Toranseru/iris-web.git",
+    [string]$RepoFolderName = "iris-web",
     [switch]$SkipDockerInstall
 )
 
 $ErrorActionPreference = "Stop"
-$RepoName = "iris-web"
-$RepoRoot = Join-Path $InstallParent $RepoName
+$RepoRoot = Join-Path $InstallParent $RepoFolderName
 
 function Write-Step { param([string]$Msg) Write-Host "`n--- $Msg ---" -ForegroundColor Cyan }
 function Write-Ok { param([string]$Msg) Write-Host $Msg -ForegroundColor Green }
@@ -103,12 +103,19 @@ if (Test-Path (Join-Path $RepoRoot ".git")) {
     Pop-Location
 } else {
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-        Write-Host "Git is not on PATH. Install Git for Windows or clone the repo manually." -ForegroundColor Red
-        exit 1
+        Write-Host "Git is not on PATH. Installing Git via winget..."
+        try {
+            winget install --id Git.Git -e --source winget --silent --accept-package-agreements
+        } catch {
+            Write-Host "winget install failed. Install Git for Windows manually, then run this script again." -ForegroundColor Red
+            exit 1
+        }
+        Write-Warn "Git was installed. Close this window, open a new PowerShell, then run this script again (PATH is updated in new sessions)."
+        exit 0
     }
-    Write-Host "Cloning $RepoUrl into $InstallParent ..."
+    Write-Host "Cloning $RepoUrl into $InstallParent as $RepoFolderName ..."
     Push-Location $InstallParent
-    git clone $RepoUrl
+    git clone $RepoUrl $RepoFolderName
     Pop-Location
     if (-not (Test-Path $RepoRoot)) {
         Write-Host "Clone failed or repo is not at $RepoRoot." -ForegroundColor Red

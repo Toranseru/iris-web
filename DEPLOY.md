@@ -7,14 +7,14 @@ This document covers deploying and configuring DFIR IRIS in this workspace and p
 A single PowerShell script installs Docker (with WSL2), clones this repo, generates `.env` with secrets, and deploys IRIS on **https://localhost**.
 
 - **Run as Administrator.** WSL or Docker install may require a reboot; if so, run the script again after reboot.
-- **Requirements:** Git on PATH. Port 443 free.
+- **Requirements:** Port 443 free. Git is installed via winget if missing; for private repos a credential prompt appears when cloning.
 - **First visit:** Accept the dev certificate warning (Advanced → Proceed to localhost).
+- **Test run:** See [TEST.md](TEST.md) for clean-state steps and verification.
 
 ```powershell
 # From the repo root (where Install-IRIS.ps1 lives):
 .\Install-IRIS.ps1
-# Or from anywhere, specifying where to clone (default: $env:USERPROFILE\iris-web):
-# .\Install-IRIS.ps1 -InstallParent "C:\Projects"
+# Or: -InstallParent "C:\Projects"  -RepoFolderName "iris-web"  -RepoUrl "https://github.com/..."
 # Skip Docker install if already installed:
 # .\Install-IRIS.ps1 -SkipDockerInstall
 # Existing .env is never overwritten; delete .env to regenerate secrets.
