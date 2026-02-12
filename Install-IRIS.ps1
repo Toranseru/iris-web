@@ -1,22 +1,19 @@
 <#
 .SYNOPSIS
-  One-click install: WSL2, Docker Desktop, clone Toranseru/iris-web, generate .env, deploy IRIS on localhost.
+  One-click deploy: requires Docker Desktop (WSL2 backend), clones repo, generates .env, deploys IRIS on localhost.
 .DESCRIPTION
-  Run as Administrator when installing Docker/WSL. Use -SkipDockerInstall to run without elevation when Docker is already installed.
-  Installs Docker Desktop (with WSL2) if missing, clones or pulls the repo,
-  creates .env with generated secrets and SERVER_NAME=localhost, then runs docker compose up.
+  Requires Docker Desktop to be installed and running. Does not install WSL or Docker.
+  Clones or pulls the repo, creates .env with generated secrets and SERVER_NAME=localhost, then runs docker compose up.
   IRIS will be available at https://localhost. Admin password is printed and saved to iris-admin-password.txt.
   First visit: accept the dev certificate warning (Advanced -> Proceed to localhost).
 .NOTES
-  If WSL or Docker install requires a reboot, the script prints the command to run after reboot and optionally reboots (cancel with: shutdown /a).
   Port 443 must be free. Git is installed via winget if missing; for private repos a credential prompt will appear when cloning.
 #>
 
 param(
     [string]$InstallParent = $env:USERPROFILE,
     [string]$RepoUrl = "https://github.com/Toranseru/iris-web.git",
-    [string]$RepoFolderName = "iris-web",
-    [switch]$SkipDockerInstall
+    [string]$RepoFolderName = "iris-web"
 )
 
 $ErrorActionPreference = "Stop"
@@ -27,30 +24,8 @@ function Write-Step { param([string]$Msg) Write-Host "`n--- $Msg ---" -Foregroun
 function Write-Ok { param([string]$Msg) Write-Host $Msg -ForegroundColor Green }
 function Write-Warn { param([string]$Msg) Write-Host $Msg -ForegroundColor Yellow }
 
-function Request-RebootAndRerun {
-    $scriptPath = if ($PSCommandPath) { $PSCommandPath } else { $MyInvocation.MyCommand.Path }
-    Write-Host "`nReboot required. After rebooting, run:" -ForegroundColor Yellow
-    Write-Host "  powershell -ExecutionPolicy Bypass -File `"$scriptPath`"" -ForegroundColor White
-    Write-Host "`nRebooting in 60 seconds (cancel with: shutdown /a)" -ForegroundColor Gray
-    shutdown /r /t 60 /c "IRIS install: run the script again after reboot."
-    exit 0
-}
-
-# ---------- Step 1: WSL2 and Docker Desktop ----------
-Write-Step "Step 1: WSL2 and Docker Desktop"
-
-Write-Host "Checking WSL..."
-$wslOk = $false
-try {
-    $wslVer = wsl -l -v 2>$null
-    if ($LASTEXITCODE -eq 0 -and $wslVer) { $wslOk = $true }
-} catch {}
-if (-not $wslOk) {
-    Write-Warn "WSL not detected. Installing WSL (reboot required)..."
-    wsl --install
-    Request-RebootAndRerun
-}
-Write-Ok "WSL is available."
+# ---------- Step 1: Docker ----------
+Write-Step "Step 1: Docker"
 
 # Ensure we see Docker on PATH: child process (e.g. powershell -File) may not have User PATH; prepend Machine + User + known Docker paths.
 $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
@@ -102,39 +77,8 @@ if (-not $dockerOk -and $dockerClientExists) {
     }
 }
 
-if (-not $dockerOk -and -not $SkipDockerInstall) {
-    $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    if (-not $isAdmin) {
-        Write-Host "Docker is not installed and this script is not running as Administrator. Run PowerShell as Administrator, or install Docker Desktop manually and run with -SkipDockerInstall." -ForegroundColor Red
-        exit 1
-    }
-    $installerPath = Join-Path $env:TEMP "DockerDesktopInstaller.exe"
-    $dockerInstallerUrl = "https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe"
-
-    Write-Host "Downloading Docker Desktop installer (~600MB) from desktop.docker.com to $installerPath ..."
-    Invoke-WebRequest -Uri $dockerInstallerUrl -OutFile $installerPath -UseBasicParsing
-
-    Write-Host "Installing Docker Desktop (silent, this may take a few minutes)..."
-    Start-Process -FilePath $installerPath -ArgumentList "install", "--quiet", "--accept-license", "--noreboot" -Wait -Verb RunAs
-
-    Write-Host "Waiting for Docker daemon to start (up to 90s)..."
-    $maxWait = 90
-    $waited = 0
-    while ($waited -lt $maxWait) {
-        Start-Sleep -Seconds 5
-        $waited += 5
-        try {
-            & $dockerExePath info 2>$null
-            if ($LASTEXITCODE -eq 0) { $dockerOk = $true; break }
-        } catch {}
-    }
-    if (-not $dockerOk) {
-        Write-Warn "Docker did not become ready in time. Reboot required."
-        Request-RebootAndRerun
-    }
-}
 if (-not $dockerOk) {
-    Write-Host "Docker is not available. Install Docker Desktop or run without -SkipDockerInstall." -ForegroundColor Red
+    Write-Host "Docker is not available. Install Docker Desktop (with WSL2 backend), start it, then run this script again." -ForegroundColor Red
     exit 1
 }
 Write-Ok "Docker is ready."
