@@ -52,6 +52,10 @@ if (-not $wslOk) {
 }
 Write-Ok "WSL is available."
 
+# Prepend Docker's standard install path so we find docker when run elevated (admin PATH often differs).
+$dockerBinPath = "$env:ProgramFiles\Docker\Docker\resources\bin"
+if (Test-Path $dockerBinPath) { $env:PATH = "$dockerBinPath;$env:PATH" }
+
 Write-Host "Checking Docker daemon..."
 $dockerOk = $false
 try {
@@ -59,9 +63,12 @@ try {
     if ($LASTEXITCODE -eq 0) { $dockerOk = $true }
 } catch {}
 
-# If daemon not responding, check if Docker client is installed (avoid re-download)
+# If daemon not responding, check if Docker client is installed (avoid re-download).
 $dockerClientExists = $false
-try { docker version 2>$null | Out-Null; if ($LASTEXITCODE -eq 0) { $dockerClientExists = $true } } catch {}
+if (Get-Command docker -ErrorAction SilentlyContinue) {
+    cmd /c "docker version >nul 2>&1"
+    if ($LASTEXITCODE -eq 0) { $dockerClientExists = $true }
+}
 if (-not $dockerOk -and $dockerClientExists) {
     Write-Host "Docker is installed but the daemon is not running." -ForegroundColor Yellow
     Write-Host "Start Docker Desktop from the Start menu, wait until it is ready (whale icon in tray), then run this script again." -ForegroundColor Yellow
