@@ -35,7 +35,7 @@ Iris is a web collaborative platform aiming to help incident responders sharing 
 
 ## One-click install (Windows)
 
-A single PowerShell script installs Docker (with WSL2), clones this repo, generates `.env` with secrets, and deploys IRIS on **https://localhost**. Run as Administrator for first-time Docker/WSL install; use `-SkipDockerInstall` when Docker is already running.
+DFIR IRIS is straightforward to install and configure manually (see [Getting started](#getting-started) below). This repo is a **production-ready** fork with an installer designed to be **idiot-proof**: one script, minimal decisions, sensible defaults. It installs Docker (with WSL2) if needed, clones this repo, generates `.env` with secrets, and deploys IRIS on **https://localhost**. Run as Administrator for first-time Docker/WSL install; use `-SkipDockerInstall` when Docker is already running.
 
 ```powershell
 .\Install-IRIS.ps1 -SkipDockerInstall
@@ -47,6 +47,9 @@ If you get "running scripts is disabled", either run the launcher **Run-Install-
 - **Docs:** [DEPLOY.md](DEPLOY.md) for options and [TEST.md](TEST.md) for a clean test run.
 - **Private repo:** Use `-RepoUrl "https://github.com/YourOrg/your-repo.git"`; a credential prompt will appear when cloning.
 - **Admin:** Username `administrator`; password is printed and saved to `iris-admin-password.txt` in the clone folder.
+
+**Optional helper commands:** The repo includes `scripts/Iris-Commands.ps1` with convenience functions (`iris-start`, `iris-stop`, `iris-status`, `iris-logs`, `iris-shell`, `iris-update`, `iris-backup`, `iris-help`). The installer does **not** add these to your PowerShell profile. To use them, load the script manually in a session or in your profile:  
+`. .\scripts\Iris-Commands.ps1`
 
 ## Getting started
 It is divided in two main parts, IrisWeb and IrisModules.   
