@@ -52,27 +52,54 @@ if (-not $wslOk) {
 }
 Write-Ok "WSL is available."
 
-# Prepend Docker's standard install path so we find docker when run elevated (admin PATH often differs).
-$dockerBinPath = "$env:ProgramFiles\Docker\Docker\resources\bin"
+# Ensure we see Docker on PATH: child process (e.g. powershell -File) may not have User PATH; prepend Machine + User + known Docker paths.
+$machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+$userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+if ($machinePath) { $env:PATH = "$machinePath;$env:PATH" }
+if ($userPath) { $env:PATH = "$userPath;$env:PATH" }
+# Use literal 64-bit path so we find Docker even when child process is 32-bit ($env:ProgramFiles would be (x86)).
+$dockerBinPath = "C:\Program Files\Docker\Docker\resources\bin"
 if (Test-Path $dockerBinPath) { $env:PATH = "$dockerBinPath;$env:PATH" }
 
 Write-Host "Checking Docker daemon..."
 $dockerOk = $false
-try {
-    docker info 2>$null | Out-Null
-    if ($LASTEXITCODE -eq 0) { $dockerOk = $true }
-} catch {}
-
-# If daemon not responding, check if Docker client is installed (avoid re-download).
-$dockerClientExists = $false
-if (Get-Command docker -ErrorAction SilentlyContinue) {
-    cmd /c "docker version >nul 2>&1"
-    if ($LASTEXITCODE -eq 0) { $dockerClientExists = $true }
+$dockerExePath = Join-Path $dockerBinPath "docker.exe"
+if (Test-Path $dockerExePath) {
+    try {
+        & $dockerExePath info 2>$null
+        if ($LASTEXITCODE -eq 0) { $dockerOk = $true }
+    } catch {}
 }
+
+# If daemon not responding, check if Docker client is installed (avoid re-download). docker.exe at known path = client installed (docker version can exit non-zero when daemon is down).
+$dockerClientExists = $false
+if (-not $dockerOk -and (Test-Path $dockerExePath)) { $dockerClientExists = $true }
 if (-not $dockerOk -and $dockerClientExists) {
-    Write-Host "Docker is installed but the daemon is not running." -ForegroundColor Yellow
-    Write-Host "Start Docker Desktop from the Start menu, wait until it is ready (whale icon in tray), then run this script again." -ForegroundColor Yellow
-    exit 1
+    $dockerDesktopExe = "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+    if (Test-Path $dockerDesktopExe) {
+        Write-Host "Docker is installed but the daemon is not running. Starting Docker Desktop..." -ForegroundColor Yellow
+        Start-Process -FilePath $dockerDesktopExe -WindowStyle Hidden
+        Write-Host "Waiting for Docker daemon to start (up to 90s)..."
+        $maxWait = 90
+        $waited = 0
+        while ($waited -lt $maxWait) {
+            Start-Sleep -Seconds 5
+            $waited += 5
+            try {
+                & $dockerExePath info 2>$null
+                if ($LASTEXITCODE -eq 0) { $dockerOk = $true; break }
+            } catch {}
+        }
+        if (-not $dockerOk) {
+            Write-Host "Docker did not become ready in time." -ForegroundColor Yellow
+            Write-Host "Start Docker Desktop from the Start menu, wait until it is ready (whale icon in tray), then run this script again." -ForegroundColor Yellow
+            exit 1
+        }
+    } else {
+        Write-Host "Docker is installed but the daemon is not running." -ForegroundColor Yellow
+        Write-Host "Start Docker Desktop from the Start menu, wait until it is ready (whale icon in tray), then run this script again." -ForegroundColor Yellow
+        exit 1
+    }
 }
 
 if (-not $dockerOk -and -not $SkipDockerInstall) {
@@ -97,7 +124,7 @@ if (-not $dockerOk -and -not $SkipDockerInstall) {
         Start-Sleep -Seconds 5
         $waited += 5
         try {
-            docker info 2>$null | Out-Null
+            & $dockerExePath info 2>$null
             if ($LASTEXITCODE -eq 0) { $dockerOk = $true; break }
         } catch {}
     }
